@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#ff2d2d2d</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="colorTab">#33CCCC</color>
+    <color name="colorUnderLine">#FFFFFF</color>
+    <color name="text">#333333</color>
+    <color name="text_faint">#999999</color>
+    <color name="text_de_emphasized">#666666</color>
+    <color name="brand_main">#33B5E5</color>
+    <color name="header_background">#00BB9C</color>
+    <color name="cardview_background">#00000000</color>
+    <color name="white">@android:color/white</color>
+
+</resources>
