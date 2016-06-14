@@ -1,0 +1,4 @@
+# ViewPagerTest
+YahooWeather的部分功能测试
+可以简单通过Item Click 添加多个界面，但未能响应每个界面的onNavigationItemSelected，目前只能响应最后添加的界面的item响应。
+可通过定位查询到当前城市的天气数据并显示，布局整体与YahooWeather的一致，有很多细节未添加，天气icon未添加，及界面不能动态修改。
