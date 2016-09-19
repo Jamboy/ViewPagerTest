@@ -93,4 +93,5 @@
         <item name="android:textSize">@dimen/attribution_text</item>
         <item name="android:textColor">@color/text_faint</item>
     </style>
+
 </resources>

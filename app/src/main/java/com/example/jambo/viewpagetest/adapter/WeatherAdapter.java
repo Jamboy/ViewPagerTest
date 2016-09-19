@@ -19,7 +19,7 @@ import java.util.Calendar;
 public class WeatherAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>{
 
     private Context mContext;
-    private Weather mWeather;
+    private Weather mWeather = null;
     private static final int TYPE_NOW = 0;
     private static final int TYPE_HOURLY = 3;
     private static final int TYPE_SUGGESTION = 2;
@@ -29,6 +29,14 @@ public class WeatherAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         this.mContext = context;
         this.mWeather = weather;
     }
+
+    //public WeatherAdapter(Context context){
+    //    this.mContext = context;
+    //}
+    //
+    //public  void addWeatherData(Weather weather){
+    //    this.mWeather = weather;
+    //}
 
     @Override
     public int getItemCount() {

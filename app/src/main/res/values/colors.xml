@@ -12,5 +12,7 @@
     <color name="header_background">#00BB9C</color>
     <color name="cardview_background">#00000000</color>
     <color name="white">@android:color/white</color>
+    <color name="black">@android:color/black</color>
+    <color name="gray">#FFECE9E9</color>
 
 </resources>
