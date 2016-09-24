@@ -12,6 +12,7 @@ import java.util.List;
  * Created by Jambo on 2016/6/2.
  */
 public class MainActivityAdapter extends PagerAdapter {
+    // TODO: 2016/9/22 最好是能写一个根据View的Title来删除视图的方法 
 
     List<View> mViewList = new ArrayList<>();
 
@@ -100,6 +101,7 @@ public class MainActivityAdapter extends PagerAdapter {
         pager.setAdapter(null);
         mViewList.remove(position);
         pager.setAdapter(this);
+
         return position;
     }
 
@@ -107,4 +109,16 @@ public class MainActivityAdapter extends PagerAdapter {
     public View getView(int position){
         return mViewList.get(position);
     }
+
+    // TODO: 2016/9/22 根据Tag返回对应View 遍历所有的View的Tag 配对到的返回 然后Return
+
+    public View getViewForTag(String tag){
+        for(int i = 0; i < mViewList.size(); i++){
+            if (mViewList.get(i).getTag().toString().equals(tag)){
+                   return mViewList.get(i);
+            }
+        }
+        return mViewList.get(0);
+    }
+
 }

@@ -1,13 +1,17 @@
 package com.example.jambo.viewpagetest.activity;
 
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
@@ -42,6 +46,8 @@ import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
+import static com.example.jambo.viewpagetest.R.id.city;
+
 public class MainActivity extends Activity
     implements NavigationView.OnNavigationItemSelectedListener, AMapLocationListener{
     private ViewPager mViewPager = null;
@@ -60,37 +66,63 @@ public class MainActivity extends Activity
     private WeatherAdapter mWeatherAdapter = null;
     private LinearLayout mFatherLinearLayout;
     private final String KEY = "1f93bec9ad304eb2ae641280bd65b9df";
-    private String [] Cities = {"长沙","北京","杭州"};
     private List<Integer> list = new ArrayList();
-    private List<String> cities = null;
-    private List<Integer> cityIds = null;
     private SelectedCityDBManager selectedCityDBManager;
-    SQLiteDatabase database = null;
+    private static final int LOCATION_REQUEST_CODE = 007;
+    //SQLiteDatabase database = null;
+    private boolean isLocation = false;
+    private String location_city;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        findViewId();
         mViewPager = (ViewPager) findViewById(R.id.pager);
         mAdapter = new MainActivityAdapter();
         mViewPager.setAdapter(mAdapter);
         mPreference = PreferenceManager.getDefaultSharedPreferences(this);
         selectedCityDBManager = new SelectedCityDBManager(this);
-        database = selectedCityDBManager.getWritableDatabase();
-        location();
+        requestLocationPermission();
         loadCity();
-        boolean isLocation = mPreference.getBoolean("isLocation",false);
-        if (isLocation){
-            String location_city = mPreference.getString("location_city","北京");
-            Log.d("islocation",location_city);
-            Log.d("islocation","isLocation");
-            queryWeatherDataFromService(location_city);
+        location_city = mPreference.getString("location_city","北京");
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
+    public void requestLocationPermission(){
+        if (ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{ Manifest.permission.ACCESS_COARSE_LOCATION},LOCATION_REQUEST_CODE);
         }else{
-            queryWeatherDataFromService("北京");
-            Toast.makeText(this,"Please open the GPS", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,"hava permission",Toast.LENGTH_LONG).show();
         }
 
+    }
 
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode){
+            case LOCATION_REQUEST_CODE:
+            {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    location();
+                    isLocation = true;
+                    Toast.makeText(this,"you get permission",Toast.LENGTH_LONG).show();
+                //    权限被同意
+                }else {
+                    Toast.makeText(this,"you not get permission",Toast.LENGTH_LONG).show();
+                //    被拒绝
+                }
+            }
+        }
+    }
+
+
+    public void findViewId(){
+        mNavigationView = (NavigationView)findViewById(R.id.navigation_view);
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        mNavigationView.setNavigationItemSelectedListener(this);
     }
 
 
@@ -99,9 +131,21 @@ public class MainActivity extends Activity
         switch (item.getItemId()) {
             case R.id.city_manager:
                 closeDrawerLayout();
-                startActivity(new Intent(MainActivity.this,AddCityManager.class));
+                // TODO: 2016/9/23 把requestCode定义成静态
+                startActivityForResult(new Intent(MainActivity.this,AddCityManager.class),2);
+                break;
+            case R.id.city_location:
+                // TODO: 2016/9/24 这个方法块可以封装
+                closeDrawerLayout();
+                if (!selectedCityDBManager.isExisted(location_city)){
+                    queryWeatherDataFromService(location_city);
+                }else {
+                    setCurrentPage(mAdapter.getViewForTag(location_city));
+                }
                 break;
             case R.id.about:
+                removeView(mAdapter.getView(1));
+                selectedCityDBManager.deleteCity("长沙");
                 closeDrawerLayout();
                 break;
             case R.id.activity_settings:
@@ -121,12 +165,9 @@ public class MainActivity extends Activity
 
         mFatherLinearLayout = (LinearLayout) v0.findViewById(R.id.father_linear_layout);
         mToolbar = (Toolbar) v0.findViewById(R.id.bar);
-        mDrawerLayout = (DrawerLayout) v0.findViewById(R.id.drawer_layout);
-        mNavigationView = (NavigationView) v0.findViewById(R.id.navigation_view);
-
         mRecyclerView = (RecyclerView) v0.findViewById(R.id.recycler_view);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
-        mCityTV = (TextView) v0.findViewById(R.id.city);
+        mCityTV = (TextView) v0.findViewById(city);
         mTimeTV = (TextView) v0.findViewById(R.id.time);
         mAddCity = (Button) v0.findViewById(R.id.add_city);
         mAddCity.setOnClickListener(new View.OnClickListener() {
@@ -135,6 +176,7 @@ public class MainActivity extends Activity
                 startActivityForResult(intent,1);
             }
         });
+
         ActionBarDrawerToggle mActionBar  = new ActionBarDrawerToggle(this,mDrawerLayout,mToolbar,R.string.open,R.string.close);
         mDrawerLayout.setDrawerListener(mActionBar);
         //ToDo 这里侧滑栏的点击接口是this也就当前
@@ -170,38 +212,44 @@ public class MainActivity extends Activity
                     });
         }
  */
-        Cursor cursor = database.query("CityManager",null,null,null,null,null,null);
-        if (cursor.moveToFirst()){
-            do {
-                String name = cursor.getString(cursor.getColumnIndex("name"));
-                int id = cursor.getInt(cursor.getColumnIndex("cityId"));
-                int index = cursor.getInt(cursor.getColumnIndex("pageIndex"));
-                final int i = index;
+        //Cursor cursor = database.query("CityManager",null,null,null,null,null,null);
+        //if (cursor.moveToFirst()){
+        //    do {
+        //        String name = cursor.getString(cursor.getColumnIndex("name"));
+        //        int id = cursor.getInt(cursor.getColumnIndex("cityId"));
+        //        int index = cursor.getInt(cursor.getColumnIndex("pageIndex"));
+        //        final int i =
+                if (!city_name.equals(location_city)){
                 mNavigationView.getMenu()
-                    .add(R.id.city_group,id,Menu.NONE,name)
+                    .add(R.id.city_group,city_id,Menu.NONE,city_name)
                     .setIcon(R.drawable.place)
                     .setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                         @Override public boolean onMenuItemClick(MenuItem item) {
-                            setCurrentPage(mAdapter.getView(i));
-                            //handle
+                            closeDrawerLayout();
+                            // TODO: 2016/9/22 在这个方法里我唯一可以获取到的值是item.getTitle
+                            //添加一个List  计数器，因为每菜单的Menu添加的顺序是和View添加顺序一致的，所以在检测到每当添加一个View的时候
+                            //在写一个方法，根据Menu的name获取到对应的id并返回，然后再设置到CurrentPage
+                            //然后每个
+                            int itemId = item.getItemId();
+                            String itemTitle = item.getTitle().toString();
+                            //String pagerTitle = mAdapter.getPageTitle(1).toString();
+                            //String pagerTag = mAdapter.getView(1).getTag().toString();
+                            Log.d("MainActivity:getMenu","ItemId :" + itemId + "");
+                            Log.d("MainActivity:getMenu","ItemTitle :" + itemTitle + "");
+                            setCurrentPage(mAdapter.getViewForTag(city_name));
                             return true;
                         }
                     });
-            }while (cursor.moveToNext());
-        }
-        //cities = getAllCity();
-        //for (int i = 0; i < cities.size(); i++){
-        //    mNavigationView.getMenu().add()
-        //}
+                }
 
-        mNavigationView.setNavigationItemSelectedListener(this);
         mActionBar.syncState();
         // TODO: 2016/9/18  这里可以将cityName及对应的pagerIndex传入数据库
+        v0.setTag(city_name);
         int pagerIndex = addView(v0);
         Log.d("initView",pagerIndex + "");
         mAdapter.notifyDataSetChanged();
 
-        int result = selectedCityDBManager.addCity(database,city_name,pagerIndex,city_id);
+        int result = selectedCityDBManager.addCity(city_name,city_id);
         Log.d("MainActivity:initView",result + "");
 
     }
@@ -258,7 +306,7 @@ public class MainActivity extends Activity
         Log.d("pagerIndex",pageIndex + "");
         mAdapter.notifyDataSetChanged();
         mViewPager.setCurrentItem(pageIndex);
-        mPreference.edit().putInt("current_page_index",pageIndex).commit();
+        //mPreference.edit().putInt("current_page_index",pageIndex).commit();
         return pageIndex;
     }
 
@@ -289,20 +337,16 @@ public class MainActivity extends Activity
 
 
     public void closeDrawerLayout(){
-        //if (mDrawerLayout != null){
-            mDrawerLayout.closeDrawers();
-        //}
+        if (isDrawerLayoutClose()) {
+            mDrawerLayout.closeDrawer(GravityCompat.START);
+        }
     }
 
 
     @Override
     public void onBackPressed() {
-            if (isDrawerLayoutClose()){
-                closeDrawerLayout();
-                Log.d("close","close");
-            }else {
-                super.onBackPressed();
-            }
+        closeDrawerLayout();
+        super.onBackPressed();
     }
 
 
@@ -385,11 +429,8 @@ public class MainActivity extends Activity
                         .replace("特别行政区", "")
                         .replace("地区", "")
                         .replace("盟", "");
-                mPreference.edit().putString("location_city", location_city).commit();
-                mPreference.edit().putBoolean("isLocation",true).commit();
-
+                mPreference.edit().putString("location_city",location_city).apply();
                 Log.d(location_city, "onLocationChanged:");
-                //queryWeatherDataFromService(location_city);
             } else {
                 //显示错误信息ErrCode是错误码，errInfo是错误信息，详见错误码表。
                 Log.e("AmapError", "location Error, ErrCode:" + aMapLocation.getErrorCode() + ", errInfo:" +
@@ -401,42 +442,69 @@ public class MainActivity extends Activity
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1){
-            String SelectCity = data.getStringExtra("SelectCity");
-            //initView(SelectCity);
-            queryWeatherDataFromService(SelectCity);
-            //mFatherLinearLayout.setBackgroundColor(Color.BLUE);
+        switch (requestCode) {
+            case 1:
+                if (data != null) {
+                    String SelectCity = data.getStringExtra("SelectCity");
+
+                    if (!selectedCityDBManager.isExisted(SelectCity)) {
+                        queryWeatherDataFromService(SelectCity);
+                    } else {
+                        setCurrentPage(mAdapter.getViewForTag(SelectCity));
+                    }
+                } else {
+                    return;
+                }
+                break;
+            case 2:
+                if (data != null){
+                    ArrayList<String> removeCities = data.getStringArrayListExtra("removeCities");
+                    for (String name : removeCities){
+                        int removeItemId = selectedCityDBManager.queryIdForName(name);
+                        removeView(mAdapter.getViewForTag(name));
+                        mNavigationView.getMenu().removeItem(removeItemId);
+                        selectedCityDBManager.deleteCity(name);
+                    }
+                }else{
+                    return;
+                }
+                break;
         }
+
+            // TODO: 2016/9/19  在重构MainActivity的Layout后在此更新NavigationView的Item mNavigationView.getMenu.add();但是这里无法为每个Item添加唯一的id 传一个?
+            // TODO: 2016/9/19 在添加城市时，将所选的index传过来？ 无法完成
+            // TODO: 2016/9/22 先将传过来的城市与数据库中的进行匹对，若有则跳转到对应的View，没有则添加
+
+            /**
+             * 以上也就是我需要将查询所有城市的操作进行封装，
+             * 然后逐一取出匹对。 最好是在数据中能存入一个与ViewPagerIndex相对应的id 比如自增长的Id与ViewPgaerIndex，
+             *
+             */
+            //initView(SelectCity);
+
+            //mFatherLinearLayout.setBackgroundColor(Color.BLUE);
     }
 
 
     //应用初始化时从数据库中查询城市并加载 （Q:每次打开程序都会去服务器把所有数据加载一遍，虽然是可以起到及时更新数据的作用，但每次都去加载是否会浪费流量呢）
     //这个更新功能的开启应该在设置里交给用户，而非在每次打开应用时重新加载，因为有时即使数据没有更新，也会重新加载一遍数据
     //怎样解决:是保存天气数据然后从本地加载呢？还是保存什么？
+    //在OnCreate中加载所有城市时是无序的，每次添加View的顺序都不一样
     private void loadCity(){
-        Cursor cursor =  database.query("CityManager",null,null,null,null,null,null,null);
+        Cursor cursor = selectedCityDBManager.selectAllCity();
         if (cursor.moveToFirst()){
             do {
                 String city_name = cursor.getString(cursor.getColumnIndex("name"));
+  Log.d("MainActivity",city_name);
+  int pager_index = cursor.getInt(cursor.getColumnIndex("pagerIndex"));
+  //int city_id = cursor.getInt(cursor.getColumnIndex("cityId"));
                 queryWeatherDataFromService(city_name);
+  Log.d("MainActivity",pager_index + "");
+  //Log.d("MainActivity",city_id + "");
             }while (cursor.moveToNext());
         }else {
+            queryWeatherDataFromService("北京");
             cursor.close();
-            return;
         }
-        cursor.close();
     }
-
-    //public List<String> getAllCity(){
-    //    Cursor cursor = database.query("CityManager",null,null,null,null,null,null);
-    //    List<String> cities = new ArrayList<>();
-    //    if (cursor.moveToFirst()){
-    //        do {
-    //            String city_name = cursor.getString(cursor.getColumnIndex("name"));
-    //            cities.add(city_name);
-    //        }while (cursor.moveToNext());
-    //    }
-    //    return cities;
-    //}
-
 }

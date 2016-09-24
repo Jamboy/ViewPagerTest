@@ -12,10 +12,10 @@
 
         <item
             android:orderInCategory="0"
-
-            android:id="@+id/location_now_city"
+            android:id="@+id/city_location"
             android:icon="@drawable/place"
             android:title="当前城市"/>
+
     </group>
 
     <group
